@@ -208,7 +208,18 @@ class Migrations
 	 */
 	public function install($type='')
 	{
-		$migrations_path = $type == 'app_' ? $this->migrations_path : $this->migrations_path .'core/';
+		switch ($type)
+		{
+			case '':
+				$migrations_path = $this->migrations_path;
+				break;
+			case 'app_':
+				$migrations_path = APPPATH .'db/migrations/';
+				break;
+			default:
+				$migrations_path = module_path(substr($type, 0, -1), 'migrations') .'/';
+				break;
+		}
 
 		// Load all *_*.php files in the migrations path
 		$files = glob($migrations_path.'*_*'.EXT);
@@ -255,7 +266,7 @@ class Migrations
 	 *
 	 * @return mixed TRUE if already latest, FALSE if failed, int if upgraded
 	 */
-	function version($version, $type='')
+	public function version($version, $type='')
 	{
 		$schema_version = $this->get_schema_version($type);
 		$start = $schema_version;
@@ -538,14 +549,22 @@ class Migrations
 				break;
 		}
 
+		// List all *_*.php files in the migrations path
 		$files = glob($migrations_path .'*_*'.EXT);
 
 		for ($i=0; $i < count($files); $i++)
 		{
-			$files[$i] = str_ireplace($migrations_path, '', $files[$i]);
+			// Remove path and extension
+			$files[$i] = basename($files[$i],EXT);
+
+			// Mark wrongly formatted files as FALSE for later filtering
+			if(!preg_match('/^\d{3}_(\w+)$/',$name)) $files[$i] = FALSE;
 		}
 
-		return $files;
+		$migrations = array_filter($files);
+		sort($migrations);
+
+		return $migrations;
 
 	}//end get_available_versions()
 
